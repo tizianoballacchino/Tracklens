@@ -1,0 +1,1011 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>TrackLens</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+:root {
+  --bg0: #080810; --bg1: #10101a; --bg2: #16162a; --bg3: #1e1e38;
+  --border: rgba(140,130,255,0.12);
+  --accent: #8b7ff0; --accent2: #5ecfaa; --accent3: #f0a060; --accent4: #f07070;
+  --text1: #eeeef8; --text2: #9090b8; --text3: #4a4a70;
+}
+body {
+  background: var(--bg0); color: var(--text1);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  min-height: 100vh; display: flex; flex-direction: column; align-items: center;
+  padding: 20px 14px 60px;
+}
+
+/* ── Nav ── */
+.nav {
+  width: 100%; max-width: 500px;
+  display: flex; gap: 6px;
+  margin-bottom: 20px;
+}
+.nav-btn {
+  flex: 1; padding: 11px 8px; border-radius: 14px;
+  border: 1px solid var(--border); background: transparent;
+  color: var(--text3); font-size: 12px; font-weight: 600;
+  cursor: pointer; transition: all 0.2s; text-align: center;
+}
+.nav-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+.page { display: none; width: 100%; max-width: 500px; flex-direction: column; align-items: center; }
+.page.active { display: flex; }
+
+/* ── Header ── */
+.header { width: 100%; display: flex; align-items: center; justify-content: space-between; margin-bottom: 22px; }
+.logo { font-size: 24px; font-weight: 700; letter-spacing: -0.8px; }
+.logo span { color: var(--accent); }
+.status-pill { display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 600; padding: 5px 12px; border-radius: 20px; background: var(--bg2); border: 1px solid var(--border); color: var(--text2); transition: all 0.3s; }
+.status-pill.active { color: var(--accent2); border-color: rgba(94,207,170,0.3); }
+.status-pill.music  { color: var(--accent);  border-color: rgba(139,127,240,0.3); }
+.pulse { width: 7px; height: 7px; border-radius: 50%; background: currentColor; animation: pulseAnim 1.4s ease-in-out infinite; }
+@keyframes pulseAnim { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.4;transform:scale(0.65)} }
+
+/* ── Cards ── */
+.card { width: 100%; background: var(--bg1); border: 1px solid var(--border); border-radius: 22px; padding: 20px; margin-bottom: 14px; }
+.card-label { font-size: 10px; font-weight: 700; letter-spacing: 1px; color: var(--text3); text-transform: uppercase; margin-bottom: 16px; }
+
+/* ── Source ── */
+.source-area { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+#waveform { width: 100%; height: 68px; border-radius: 12px; background: var(--bg0); display: block; }
+
+.btn-row { display: flex; gap: 10px; width: 100%; }
+.btn-primary {
+  flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 16px 20px; border-radius: 16px; border: none;
+  font-size: 15px; font-weight: 600; cursor: pointer; transition: all 0.2s;
+  background: var(--accent); color: #fff; min-height: 56px;
+}
+.btn-primary:active { transform: scale(0.97); }
+.btn-primary.stop { background: #c0392b; }
+
+.btn-secondary {
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 16px 18px; border-radius: 16px; border: 1px solid var(--border);
+  background: transparent; color: var(--text2); font-size: 14px; font-weight: 500;
+  cursor: pointer; transition: all 0.2s; white-space: nowrap; min-height: 56px;
+}
+.btn-secondary:active { border-color: var(--accent); color: var(--accent); }
+
+/* Hidden file input — triggered by JS */
+#file-input { display: none; }
+
+.music-bar-wrap { width: 100%; display: flex; align-items: center; gap: 10px; }
+.music-bar-label { font-size: 10px; color: var(--text3); width: 80px; flex-shrink: 0; }
+.music-bar-bg { flex: 1; height: 4px; background: var(--bg3); border-radius: 2px; overflow: hidden; }
+.music-bar-fill { height: 100%; border-radius: 2px; background: var(--accent2); transition: width 0.3s ease; }
+.music-val { font-size: 11px; color: var(--text2); width: 60px; text-align: right; }
+
+/* ── EQ ── */
+#eq-canvas { width: 100%; height: 110px; border-radius: 12px; background: var(--bg0); display: block; }
+.eq-freq-row { display: flex; justify-content: space-between; padding: 0 4px; margin-top: 6px; }
+.eq-freq-row span { font-size: 9px; color: var(--text3); }
+
+/* ── Metrics ── */
+.metrics-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.metric-box { background: var(--bg0); border: 1px solid var(--border); border-radius: 14px; padding: 14px; position: relative; overflow: hidden; }
+.metric-box::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; border-radius: 2px 2px 0 0; opacity: 0.6; }
+.metric-box.purple::before { background: var(--accent); }
+.metric-box.teal::before   { background: var(--accent2); }
+.metric-box.amber::before  { background: var(--accent3); }
+.metric-box.coral::before  { background: var(--accent4); }
+.metric-box.green::before  { background: #7ecb6e; }
+.metric-name { font-size: 10px; color: var(--text3); margin-bottom: 6px; }
+.metric-val  { font-size: 26px; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; }
+.metric-val.purple { color: var(--accent); }
+.metric-val.teal   { color: var(--accent2); }
+.metric-val.amber  { color: var(--accent3); }
+.metric-val.coral  { color: var(--accent4); }
+.metric-val.green  { color: #7ecb6e; }
+.metric-sub { font-size: 10px; color: var(--text3); margin-top: 4px; }
+.locked-badge { display: inline-block; font-size: 9px; font-weight: 700; padding: 2px 7px; border-radius: 10px; background: rgba(94,207,170,0.15); color: var(--accent2); border: 1px solid rgba(94,207,170,0.3); margin-left: 6px; vertical-align: middle; }
+
+/* ── Dynamics ── */
+.dyn-row { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+.dyn-row:last-child { margin-bottom: 0; }
+.dyn-name { font-size: 11px; color: var(--text2); width: 100px; flex-shrink: 0; }
+.dyn-track { flex: 1; height: 5px; background: var(--bg3); border-radius: 3px; overflow: hidden; }
+.dyn-fill  { height: 100%; border-radius: 3px; transition: width 0.15s ease-out; }
+.dyn-val   { font-size: 11px; color: var(--text2); width: 50px; text-align: right; }
+
+/* ── Structure ── */
+.timeline-wrap { position: relative; }
+.timeline { display: flex; gap: 3px; height: 32px; border-radius: 8px; overflow: hidden; }
+.t-block { display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 700; border-radius: 6px; transition: width 0.4s ease; overflow: hidden; white-space: nowrap; }
+.t-time-row { display: flex; justify-content: space-between; margin-top: 6px; font-size: 9px; color: var(--text3); }
+.track-change-flash { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(139,127,240,0.15); border-radius: 8px; opacity: 0; pointer-events: none; transition: opacity 0.2s; }
+.track-change-flash.show { opacity: 1; }
+.new-track-label { font-size: 10px; color: var(--accent); margin-top: 6px; text-align: center; min-height: 14px; }
+
+/* ── Compare ── */
+.compare-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.compare-col { background: var(--bg0); border: 1px solid var(--border); border-radius: 14px; padding: 14px; }
+.compare-col-label { font-size: 10px; font-weight: 700; color: var(--text3); margin-bottom: 12px; text-align: center; }
+.compare-col.ref { border-color: rgba(94,207,170,0.3); }
+.compare-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.compare-row:last-child { margin-bottom: 0; }
+.compare-key { font-size: 10px; color: var(--text3); }
+.compare-val { font-size: 12px; font-weight: 600; color: var(--text1); }
+.compare-val.better { color: var(--accent2); }
+.compare-val.worse  { color: var(--accent4); }
+.compare-load { width: 100%; padding: 14px; border-radius: 14px; border: 1px dashed var(--border); background: transparent; color: var(--text3); font-size: 13px; cursor: pointer; text-align: center; transition: all 0.2s; margin-bottom: 12px; display: block; min-height: 52px; }
+.compare-load:active { border-color: var(--accent2); color: var(--accent2); }
+
+/* ── Save button ── */
+.btn-save {
+  width: 100%; padding: 15px; border-radius: 16px;
+  border: 1px solid rgba(94,207,170,0.3);
+  background: rgba(94,207,170,0.08); color: var(--accent2);
+  font-size: 14px; font-weight: 600; cursor: pointer;
+  transition: all 0.2s; margin-top: 4px; min-height: 52px;
+}
+.btn-save:active { background: rgba(94,207,170,0.15); }
+.btn-save:disabled { opacity: 0.3; cursor: default; }
+
+/* ── AI ── */
+.ai-box { background: var(--bg0); border: 1px solid var(--border); border-radius: 16px; padding: 16px; }
+.ai-header { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+.ai-orb { width: 22px; height: 22px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #a090ff, #5040c0); box-shadow: 0 0 8px rgba(139,127,240,0.5); animation: orbPulse 3s ease-in-out infinite; flex-shrink: 0; }
+@keyframes orbPulse { 0%,100%{box-shadow:0 0 6px rgba(139,127,240,0.4)} 50%{box-shadow:0 0 14px rgba(139,127,240,0.7)} }
+.ai-title { font-size: 12px; font-weight: 600; color: var(--text2); }
+#ai-text { font-size: 13px; line-height: 1.75; color: #b0b0d0; min-height: 40px; }
+.tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+.tag { font-size: 10px; font-weight: 600; padding: 4px 10px; border-radius: 20px; }
+.tag.purple { background: rgba(139,127,240,0.12); color: var(--accent);  border: 1px solid rgba(139,127,240,0.2); }
+.tag.teal   { background: rgba(94,207,170,0.10);  color: var(--accent2); border: 1px solid rgba(94,207,170,0.2); }
+.tag.amber  { background: rgba(240,160,96,0.10);  color: var(--accent3); border: 1px solid rgba(240,160,96,0.2); }
+.tag.coral  { background: rgba(240,112,112,0.10); color: var(--accent4); border: 1px solid rgba(240,112,112,0.2); }
+.api-row { display: flex; gap: 8px; margin-top: 14px; }
+#api-key-input { flex: 1; background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; color: var(--text1); padding: 12px 14px; font-size: 12px; outline: none; transition: border-color 0.2s; }
+#api-key-input:focus { border-color: var(--accent); }
+#api-key-input::placeholder { color: var(--text3); }
+.btn-analyze { padding: 12px 18px; background: var(--accent); border: none; border-radius: 12px; color: #fff; font-size: 13px; font-weight: 700; cursor: pointer; transition: all 0.2s; white-space: nowrap; min-height: 48px; }
+.btn-analyze:disabled { background: var(--bg3); color: var(--text3); cursor: default; }
+
+/* ── History page ── */
+.history-header { width: 100%; display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+.history-title { font-size: 20px; font-weight: 700; }
+.history-title span { color: var(--accent); }
+.history-count { font-size: 11px; color: var(--text3); background: var(--bg2); border: 1px solid var(--border); padding: 4px 10px; border-radius: 20px; }
+.history-empty-state { width: 100%; text-align: center; padding: 60px 20px; color: var(--text3); }
+.history-empty-icon { font-size: 40px; margin-bottom: 12px; }
+.history-empty-text { font-size: 14px; line-height: 1.6; }
+.session-card { width: 100%; background: var(--bg1); border: 1px solid var(--border); border-radius: 18px; padding: 18px; margin-bottom: 12px; }
+.session-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px; }
+.session-name { font-size: 14px; font-weight: 600; color: var(--text1); }
+.session-date { font-size: 10px; color: var(--text3); margin-top: 3px; }
+.session-delete { background: none; border: none; color: var(--text3); font-size: 16px; cursor: pointer; padding: 4px; }
+.session-metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px; }
+.session-metric { background: var(--bg0); border: 1px solid var(--border); border-radius: 10px; padding: 10px; text-align: center; }
+.session-metric-val { font-size: 16px; font-weight: 700; color: var(--accent); }
+.session-metric-label { font-size: 9px; color: var(--text3); margin-top: 2px; }
+.session-tags { display: flex; flex-wrap: wrap; gap: 5px; }
+.session-tag { font-size: 10px; font-weight: 600; padding: 3px 9px; border-radius: 20px; background: rgba(139,127,240,0.10); color: var(--accent); border: 1px solid rgba(139,127,240,0.2); }
+.btn-clear-all { width: 100%; padding: 13px; border-radius: 14px; border: 1px solid rgba(240,112,112,0.2); background: transparent; color: var(--accent4); font-size: 13px; cursor: pointer; margin-top: 4px; transition: all 0.2s; }
+.btn-clear-all:active { background: rgba(240,112,112,0.08); }
+
+.idle-msg { font-size: 12px; color: var(--text3); text-align: center; padding: 8px 0; }
+.save-toast { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); background: var(--accent2); color: #0a1f18; font-size: 13px; font-weight: 700; padding: 10px 22px; border-radius: 30px; opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 999; white-space: nowrap; }
+.save-toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<!-- Toast -->
+<div class="save-toast" id="save-toast">✓ Session saved</div>
+
+<!-- Nav -->
+<div class="nav">
+  <button class="nav-btn active" onclick="showPage('analyze')">🎙 Analyze</button>
+  <button class="nav-btn" onclick="showPage('compare')">⚖️ Compare</button>
+  <button class="nav-btn" onclick="showPage('history')">📋 History</button>
+</div>
+
+<!-- ═══════════════════════════════════════════════ ANALYZE PAGE -->
+<div class="page active" id="page-analyze">
+
+  <div class="header">
+    <div class="logo">Track<span>Lens</span></div>
+    <div class="status-pill" id="status-pill">
+      <div class="pulse"></div>
+      <span id="status-text">Waiting</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-label">Audio Source</div>
+    <div class="source-area">
+      <canvas id="waveform" width="460" height="68"></canvas>
+      <div class="btn-row">
+        <button class="btn-primary" id="btn-listen" onclick="toggleMic()">🎙 Listen live</button>
+        <button class="btn-secondary" id="btn-file" onclick="triggerFileInput()">📁 Load file</button>
+      </div>
+      <input type="file" id="file-input" accept=".mp3,.wav,.aac,.m4a,.ogg,.flac,audio/*" onchange="loadFile(event)">
+      <div style="width:100%;font-size:10px;color:var(--text3);text-align:center;">
+        🎙 Point your phone toward the speaker while music plays
+      </div>
+      <div class="music-bar-wrap">
+        <span class="music-bar-label">Music signal</span>
+        <div class="music-bar-bg"><div class="music-bar-fill" id="music-bar" style="width:0%"></div></div>
+        <span class="music-val" id="music-val">—</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-label">EQ Spectrum</div>
+    <canvas id="eq-canvas" width="460" height="110"></canvas>
+    <div class="eq-freq-row">
+      <span>40</span><span>80</span><span>160</span><span>320</span><span>640</span>
+      <span>1.2k</span><span>2.5k</span><span>5k</span><span>10k</span><span>20k</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-label">Key Metrics</div>
+    <div class="metrics-grid">
+      <div class="metric-box purple">
+        <div class="metric-name">BPM <span class="locked-badge" id="bpm-lock" style="display:none">LOCKED</span></div>
+        <div class="metric-val purple" id="m-bpm">—</div>
+        <div class="metric-sub" id="m-bpm-sub">detecting…</div>
+      </div>
+      <div class="metric-box amber">
+        <div class="metric-name">Loudness</div>
+        <div class="metric-val amber" id="m-lufs">—</div>
+        <div class="metric-sub">LUFS</div>
+      </div>
+      <div class="metric-box teal">
+        <div class="metric-name">Low end</div>
+        <div class="metric-val teal" id="m-low">—</div>
+        <div class="metric-sub">sub / bass energy</div>
+      </div>
+      <div class="metric-box coral">
+        <div class="metric-name">Brightness</div>
+        <div class="metric-val coral" id="m-bright">—</div>
+        <div class="metric-sub">high freq energy</div>
+      </div>
+      <div class="metric-box green" style="grid-column:span 2">
+        <div class="metric-name">Key <span class="locked-badge" id="key-lock" style="display:none">LOCKED</span></div>
+        <div class="metric-val green" id="m-key" style="font-size:20px">—</div>
+        <div class="metric-sub" id="m-key-sub">detecting…</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-label">Dynamics</div>
+    <div class="dyn-row">
+      <span class="dyn-name">Compression</span>
+      <div class="dyn-track"><div class="dyn-fill" id="d-comp" style="width:0%;background:var(--accent)"></div></div>
+      <span class="dyn-val" id="d-comp-val">—</span>
+    </div>
+    <div class="dyn-row">
+      <span class="dyn-name">Stereo width</span>
+      <div class="dyn-track"><div class="dyn-fill" id="d-stereo" style="width:0%;background:var(--accent2)"></div></div>
+      <span class="dyn-val" id="d-stereo-val">—</span>
+    </div>
+    <div class="dyn-row">
+      <span class="dyn-name">Transients</span>
+      <div class="dyn-track"><div class="dyn-fill" id="d-trans" style="width:0%;background:var(--accent3)"></div></div>
+      <span class="dyn-val" id="d-trans-val">—</span>
+    </div>
+    <div class="dyn-row">
+      <span class="dyn-name">Crest factor</span>
+      <div class="dyn-track"><div class="dyn-fill" id="d-crest" style="width:0%;background:var(--accent4)"></div></div>
+      <span class="dyn-val" id="d-crest-val">—</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-label">Song Structure</div>
+    <div class="timeline-wrap">
+      <div class="timeline" id="timeline"><div class="idle-msg">Available after 30+ sec of music</div></div>
+      <div class="track-change-flash" id="tcf"></div>
+    </div>
+    <div class="t-time-row" id="t-labels"></div>
+    <div class="new-track-label" id="new-track-label"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-label">AI Analysis</div>
+    <div class="ai-box">
+      <div class="ai-header">
+        <div class="ai-orb"></div>
+        <span class="ai-title">TrackLens AI · powered by Claude</span>
+      </div>
+      <div id="ai-text" style="color:var(--text3)">Enter your Anthropic API key and start the analysis to get an AI interpretation of the mix.</div>
+      <div id="ai-tags" class="tags"></div>
+    </div>
+    <div style="margin-bottom:10px;">
+      <div style="font-size:10px;color:var(--text3);margin-bottom:6px;">Your Claude API key — <a href="https://console.anthropic.com" target="_blank" style="color:var(--accent);text-decoration:none;">get one free at console.anthropic.com</a></div>
+      <div class="api-row">
+        <input type="password" id="api-key-input" placeholder="sk-ant-api…" oninput="saveKey(this.value)">
+        <button class="btn-analyze" id="btn-ai" onclick="runAI()" disabled>Analyze</button>
+      </div>
+      <div style="font-size:10px;color:var(--text3);margin-top:6px;">🔒 Your key is saved only on this device and never shared.</div>
+    </div>
+  </div>
+
+  <button class="btn-save" id="btn-save" onclick="saveSession()" disabled>💾 Save this session</button>
+
+</div>
+
+<!-- ═══════════════════════════════════════════════ COMPARE PAGE -->
+<div class="page" id="page-compare">
+
+  <div class="header">
+    <div class="logo">Track<span>Lens</span></div>
+    <div style="font-size:11px;color:var(--text3)">Track Comparison</div>
+  </div>
+
+  <div class="card">
+    <div class="card-label">Reference Track</div>
+    <button class="compare-load" id="ref-load-label" onclick="triggerRefInput()">📂 Load reference track to compare</button>
+    <input type="file" id="ref-input" accept=".mp3,.wav,.aac,.m4a,.ogg,.flac,audio/*" onchange="loadReference(event)" style="display:none">
+    <div class="compare-grid" id="compare-grid" style="display:none">
+      <div class="compare-col">
+        <div class="compare-col-label">🎙 Current</div>
+        <div class="compare-row"><span class="compare-key">BPM</span><span class="compare-val" id="cmp-bpm-a">—</span></div>
+        <div class="compare-row"><span class="compare-key">Loudness</span><span class="compare-val" id="cmp-lufs-a">—</span></div>
+        <div class="compare-row"><span class="compare-key">Low end</span><span class="compare-val" id="cmp-low-a">—</span></div>
+        <div class="compare-row"><span class="compare-key">Brightness</span><span class="compare-val" id="cmp-bright-a">—</span></div>
+        <div class="compare-row"><span class="compare-key">Key</span><span class="compare-val" id="cmp-key-a">—</span></div>
+      </div>
+      <div class="compare-col ref">
+        <div class="compare-col-label" id="ref-col-label">📂 Reference</div>
+        <div class="compare-row"><span class="compare-key">BPM</span><span class="compare-val" id="cmp-bpm-b">—</span></div>
+        <div class="compare-row"><span class="compare-key">Loudness</span><span class="compare-val" id="cmp-lufs-b">—</span></div>
+        <div class="compare-row"><span class="compare-key">Low end</span><span class="compare-val" id="cmp-low-b">—</span></div>
+        <div class="compare-row"><span class="compare-key">Brightness</span><span class="compare-val" id="cmp-bright-b">—</span></div>
+        <div class="compare-row"><span class="compare-key">Key</span><span class="compare-val" id="cmp-key-b">—</span></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ═══════════════════════════════════════════════ HISTORY PAGE -->
+<div class="page" id="page-history">
+
+  <div class="history-header">
+    <div>
+      <div class="history-title">Session <span>History</span></div>
+    </div>
+    <div class="history-count" id="history-count">0 sessions</div>
+  </div>
+
+  <div id="history-content" style="width:100%">
+    <div class="history-empty-state">
+      <div class="history-empty-icon">🎧</div>
+      <div class="history-empty-text">No sessions saved yet.<br>Analyze a track and tap<br>"Save this session".</div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ── Navigation ────────────────────────────────────────────────────
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-' + id).classList.add('active');
+  const idx = ['analyze','compare','history'].indexOf(id);
+  document.querySelectorAll('.nav-btn')[idx].classList.add('active');
+  if(id === 'history') renderHistory();
+}
+
+// ── File input helpers (mobile-safe) ─────────────────────────────
+function triggerFileInput() {
+  // Resume AudioContext first (required on mobile)
+  if(audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+  document.getElementById('file-input').click();
+}
+function triggerRefInput() {
+  document.getElementById('ref-input').click();
+}
+
+// ── State ─────────────────────────────────────────────────────────
+let audioCtx, analyser, source, micStream;
+let isListening = false, animFrame;
+let elapsedSec = 0, tickInterval;
+let dataHistory = [], sessions = [], refData = null;
+let currentTrackName = 'Live mic';
+let eqSmooth = new Array(512).fill(0);
+let musicScore = 0;
+let silenceFrames = 0, inSilence = false, newTrackLabelTimeout = null;
+const SILENCE_THRESHOLD = 0.005, SILENCE_MIN_FRAMES = 18;
+let energyLog = [];
+
+// BPM
+let lastBpmTime = 0, onsetBuffer = [], prevSpectrum = null;
+let lockedBpm = null, bpmCandidates = {};
+const BPM_LOCK_VOTES = 4;  // lock faster
+
+// Key
+let keyVotes = {}, lockedKey = null, keyFrameCounter = 0;
+const KEY_SAMPLE_EVERY = 8, KEY_LOCK_VOTES = 8;  // faster, still stable
+const NOTE_NAMES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+const MAJOR_PROFILE = [6.35,2.23,3.48,2.33,4.38,4.09,2.52,5.19,2.39,3.66,2.29,2.88];
+const MINOR_PROFILE = [6.33,2.68,3.52,5.38,2.60,3.53,2.54,4.75,3.98,2.69,3.34,3.17];
+
+// Snapshot for save
+let lastSnapshot = null;
+let lastAiAnalysis = null, lastAiTags = [];
+
+// ── Canvases ──────────────────────────────────────────────────────
+const wvCanvas = document.getElementById('waveform');
+const wvCtx    = wvCanvas.getContext('2d');
+const eqCanvas = document.getElementById('eq-canvas');
+const eqCtx    = eqCanvas.getContext('2d');
+
+function drawWaveform(td) {
+  const W=wvCanvas.width,H=wvCanvas.height;
+  wvCtx.clearRect(0,0,W,H);
+  wvCtx.strokeStyle='rgba(139,127,240,0.08)';wvCtx.lineWidth=1;
+  wvCtx.beginPath();wvCtx.moveTo(0,H/2);wvCtx.lineTo(W,H/2);wvCtx.stroke();
+  const g=wvCtx.createLinearGradient(0,0,W,0);
+  g.addColorStop(0,'rgba(139,127,240,0.3)');g.addColorStop(0.5,'rgba(139,127,240,0.9)');g.addColorStop(1,'rgba(94,207,170,0.5)');
+  wvCtx.beginPath();wvCtx.strokeStyle=g;wvCtx.lineWidth=1.5;
+  const step=Math.ceil(td.length/W);
+  for(let x=0;x<W;x++){const v=td[x*step]||0,y=((v+1)/2)*H;x===0?wvCtx.moveTo(x,y):wvCtx.lineTo(x,y);}
+  wvCtx.stroke();
+}
+
+function drawEQWave(fd,sr) {
+  const W=eqCanvas.width,H=eqCanvas.height,bl=fd.length,bs=sr/(bl*2);
+  const freqs=[40,80,160,320,640,1200,2500,5000,10000,20000];
+  const pts=freqs.map((f,i)=>{
+    const bin=Math.min(Math.floor(f/bs),bl-1);
+    let s=0,c=0;for(let b=Math.max(0,bin-2);b<=Math.min(bl-1,bin+2);b++){s+=fd[b];c++;}
+    eqSmooth[i]=eqSmooth[i]*0.75+(s/c)*0.25;
+    return{x:(i/(freqs.length-1))*W,y:H-(eqSmooth[i]/255)*(H*0.88)-6};
+  });
+  eqCtx.clearRect(0,0,W,H);
+  [0.25,0.5,0.75].forEach(p=>{eqCtx.strokeStyle='rgba(255,255,255,0.04)';eqCtx.lineWidth=1;eqCtx.beginPath();eqCtx.moveTo(0,H*p);eqCtx.lineTo(W,H*p);eqCtx.stroke();});
+  const fg=eqCtx.createLinearGradient(0,0,0,H);
+  fg.addColorStop(0,'rgba(139,127,240,0.35)');fg.addColorStop(0.6,'rgba(94,207,170,0.15)');fg.addColorStop(1,'transparent');
+  eqCtx.beginPath();eqCtx.moveTo(pts[0].x,H);eqCtx.lineTo(pts[0].x,pts[0].y);
+  for(let i=1;i<pts.length;i++){const cx=(pts[i-1].x+pts[i].x)/2;eqCtx.bezierCurveTo(cx,pts[i-1].y,cx,pts[i].y,pts[i].x,pts[i].y);}
+  eqCtx.lineTo(pts[pts.length-1].x,H);eqCtx.closePath();eqCtx.fillStyle=fg;eqCtx.fill();
+  const lg=eqCtx.createLinearGradient(0,0,W,0);
+  lg.addColorStop(0,'#8b7ff0');lg.addColorStop(0.5,'#5ecfaa');lg.addColorStop(1,'#f0a060');
+  eqCtx.beginPath();eqCtx.moveTo(pts[0].x,pts[0].y);
+  for(let i=1;i<pts.length;i++){const cx=(pts[i-1].x+pts[i].x)/2;eqCtx.bezierCurveTo(cx,pts[i-1].y,cx,pts[i].y,pts[i].x,pts[i].y);}
+  eqCtx.strokeStyle=lg;eqCtx.lineWidth=2.5;eqCtx.lineJoin='round';eqCtx.stroke();
+  pts.forEach(p=>{eqCtx.beginPath();eqCtx.arc(p.x,p.y,3,0,Math.PI*2);eqCtx.fillStyle='#8b7ff0';eqCtx.fill();});
+}
+
+// ── BPM ──────────────────────────────────────────────────────────
+function detectBPM(fd) {
+  if(lockedBpm!==null)return;
+  const now=performance.now();
+  let flux=0;
+  if(prevSpectrum){for(let i=0;i<fd.length;i++){const d=fd[i]-prevSpectrum[i];if(d>0)flux+=d;}}
+  prevSpectrum=new Uint8Array(fd);
+  onsetBuffer.push(flux);if(onsetBuffer.length>20)onsetBuffer.shift();
+  const avg=onsetBuffer.reduce((a,b)=>a+b,0)/onsetBuffer.length;
+  if(flux>avg*1.5&&flux>500&&(now-lastBpmTime)>200){
+    if(lastBpmTime>0){
+      const interval=now-lastBpmTime;
+      if(interval>250&&interval<2000){
+        let bpm=Math.round(60000/interval);
+        while(bpm<70)bpm*=2;while(bpm>180)bpm/=2;bpm=Math.round(bpm);
+        if(bpm>=70&&bpm<=180){
+          const r=Math.round(bpm/2)*2;
+          bpmCandidates[r]=(bpmCandidates[r]||0)+1;
+          const best=Object.entries(bpmCandidates).sort((a,b)=>b[1]-a[1])[0];
+          document.getElementById('m-bpm').textContent=best[0];
+          document.getElementById('m-bpm-sub').textContent=bpmFeel(+best[0]);
+          if(best[1]>=BPM_LOCK_VOTES){lockedBpm=+best[0];document.getElementById('bpm-lock').style.display='inline-block';}
+        }
+      }
+    }
+    lastBpmTime=now;
+  }
+}
+function bpmFeel(b){if(b<80)return'slow groove';if(b<100)return'mid-tempo';if(b<120)return'uptempo';if(b<140)return'house / funk';return'fast / dance';}
+
+// ── Key ───────────────────────────────────────────────────────────
+function detectKey(fd,sr) {
+  if(lockedKey!==null)return;
+  keyFrameCounter++;if(keyFrameCounter%KEY_SAMPLE_EVERY!==0)return;
+  const bl=fd.length,bs=sr/(bl*2);
+  const chroma=new Array(12).fill(0);
+  for(let i=1;i<bl;i++){const freq=i*bs;if(freq<80||freq>4000)continue;const midi=69+12*Math.log2(freq/440);const ch=((Math.round(midi)%12)+12)%12;chroma[ch]+=fd[i];}
+  const mx=Math.max(...chroma);if(mx===0)return;
+  const norm=chroma.map(v=>v/mx);
+  let best=-Infinity,bk='',bm='';
+  for(let root=0;root<12;root++){
+    let maj=0,min=0;
+    for(let i=0;i<12;i++){maj+=norm[(i+root)%12]*MAJOR_PROFILE[i];min+=norm[(i+root)%12]*MINOR_PROFILE[i];}
+    if(maj>best){best=maj;bk=NOTE_NAMES[root];bm='major';}
+    if(min>best){best=min;bk=NOTE_NAMES[root];bm='minor';}
+  }
+  const ks=bk+' '+bm;
+  keyVotes[ks]=(keyVotes[ks]||0)+1;
+  const leader=Object.entries(keyVotes).sort((a,b)=>b[1]-a[1])[0];
+  const [kn,km]=leader[0].split(' ');
+  document.getElementById('m-key').textContent=kn+' '+km;
+  document.getElementById('m-key-sub').textContent=km==='major'?'Major — bright, uplifting':'Minor — dark, emotional';
+  if(leader[1]>=KEY_LOCK_VOTES){lockedKey=leader[0];document.getElementById('key-lock').style.display='inline-block';}
+}
+
+// ── Music detection ───────────────────────────────────────────────
+function detectMusic(fd,rms){
+  const bl=fd.length;let active=0;for(let i=2;i<bl;i++){if(fd[i]>15)active++;}
+  const spread=active/bl;
+  const bs=audioCtx.sampleRate/analyser.fftSize;
+  const lo=Math.floor(80/bs),hi=Math.floor(8000/bs);
+  let mus=0,tot=0;for(let i=1;i<bl;i++){tot+=fd[i];if(i>=lo&&i<=hi)mus+=fd[i];}
+  const harm=tot>0?mus/tot:0;
+  musicScore=musicScore*0.85+((spread*0.4+harm*0.4+Math.min(rms*5,0.2))*100)*0.15;
+  const pct=Math.min(Math.round(musicScore),100);
+  document.getElementById('music-bar').style.width=pct+'%';
+  const pill=document.getElementById('status-pill');
+  if(pct>55){document.getElementById('music-val').textContent='Music ✓';pill.className='status-pill music';document.getElementById('status-text').textContent='Music detected';}
+  else if(pct>25){document.getElementById('music-val').textContent='Maybe…';pill.className='status-pill active';document.getElementById('status-text').textContent='Listening';}
+  else{document.getElementById('music-val').textContent='No signal';pill.className='status-pill active';document.getElementById('status-text').textContent='Listening';}
+}
+
+// ── Track change ──────────────────────────────────────────────────
+function checkTrackChange(rms){
+  if(rms<SILENCE_THRESHOLD){silenceFrames++;if(silenceFrames>=SILENCE_MIN_FRAMES&&!inSilence)inSilence=true;}
+  else{if(inSilence&&silenceFrames>=SILENCE_MIN_FRAMES)triggerNewTrack();silenceFrames=0;inSilence=false;}
+}
+function triggerNewTrack(){
+  energyLog=[];elapsedSec=0;
+  bpmCandidates={};lockedBpm=null;prevSpectrum=null;onsetBuffer=[];
+  keyVotes={};lockedKey=null;keyFrameCounter=0;
+  document.getElementById('m-bpm').textContent='—';document.getElementById('m-bpm-sub').textContent='detecting…';
+  document.getElementById('bpm-lock').style.display='none';
+  document.getElementById('m-key').textContent='—';document.getElementById('m-key-sub').textContent='detecting…';
+  document.getElementById('key-lock').style.display='none';
+  const tcf=document.getElementById('tcf');tcf.classList.add('show');setTimeout(()=>tcf.classList.remove('show'),600);
+  const lbl=document.getElementById('new-track-label');lbl.textContent='↻ New track detected';
+  clearTimeout(newTrackLabelTimeout);newTrackLabelTimeout=setTimeout(()=>{lbl.textContent='';},4000);
+  document.getElementById('timeline').innerHTML='<div class="idle-msg">Analyzing new track…</div>';
+  document.getElementById('t-labels').innerHTML='';
+  currentTrackName='Live mic';
+  lastAiAnalysis=null;lastAiTags=[];
+}
+
+// ── Structure ─────────────────────────────────────────────────────
+function maybeUpdateStructure(){
+  if(!isListening||!analyser)return;
+  const fd=new Uint8Array(analyser.frequencyBinCount);analyser.getByteFrequencyData(fd);
+  // Smooth energy reading to reduce mic noise impact
+  const rawEnergy=fd.reduce((a,b)=>a+b,0)/fd.length;
+  const lastEnergy=energyLog.length>0?energyLog[energyLog.length-1]:rawEnergy;
+  const smoothedEnergy=lastEnergy*0.7+rawEnergy*0.3;
+  energyLog.push(smoothedEnergy);
+  // Only show structure after 30 seconds — needs enough data to be meaningful
+  if(elapsedSec>=30)renderStructure(segmentEnergy(energyLog));
+}
+function segmentEnergy(log){
+  const names=['Intro','Verse','Pre-C','Chorus','Bridge','Outro'];
+  const colors=[{bg:'#1a1a38',fg:'#8b7ff0'},{bg:'#8b7ff0',fg:'#fff'},{bg:'#0d2820',fg:'#5ecfaa'},{bg:'#5ecfaa',fg:'#0a1f18'},{bg:'#2a1e08',fg:'#f0a060'},{bg:'#2a1010',fg:'#f07070'}];
+  // Larger window = less sensitive to momentary noise
+  const win=10;
+  const sm=log.map((v,i)=>{const sl=log.slice(Math.max(0,i-win),i+win);return sl.reduce((a,b)=>a+b,0)/sl.length;});
+  const segs=[];let start=0,idx=0;
+  for(let i=win;i<sm.length;i++){
+    const delta=Math.abs(sm[i]-sm[i-win]),isLast=i===sm.length-1;
+    // Higher delta threshold (12 vs 5) = only reacts to real energy changes, not mic noise
+    // Longer min segment (15s vs 5s) = avoids tiny phantom segments
+    if((delta>12&&i-start>15)||isLast){const dur=i-start;if(dur>10){segs.push({name:names[idx%names.length],pct:Math.round((dur/sm.length)*100),color:colors[idx%colors.length]});idx++;start=i;}}
+  }
+  return segs.length?segs:[{name:'Listening…',pct:100,color:{bg:'#1a1a38',fg:'#4a4a70'}}];
+}
+function renderStructure(segs){
+  const tl=document.getElementById('timeline');tl.innerHTML='';
+  segs.forEach(s=>{const d=document.createElement('div');d.className='t-block';d.style.width=s.pct+'%';d.style.background=s.color.bg;d.style.color=s.color.fg;d.textContent=s.pct>8?s.name:'';tl.appendChild(d);});
+  document.getElementById('t-labels').innerHTML=`<span>0:00</span><span>${fmt(elapsedSec/2)}</span><span>${fmt(elapsedSec)}</span>`;
+}
+function fmt(sec){const s=Math.round(sec);return`${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;}
+
+// ── Save session (manual) ─────────────────────────────────────────
+function saveSession(){
+  const bpm=document.getElementById('m-bpm').textContent;
+  const lufs=document.getElementById('m-lufs').textContent;
+  const key=document.getElementById('m-key').textContent;
+  const low=document.getElementById('m-low').textContent;
+  const bright=document.getElementById('m-bright').textContent;
+  if(bpm==='—'&&lufs==='—')return;
+  const now=new Date();
+  sessions.unshift({
+    name: currentTrackName,
+    date: now.toLocaleDateString()+' '+now.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}),
+    bpm, lufs, key, low, bright,
+    analysis: lastAiAnalysis,
+    tags: [...lastAiTags]
+  });
+  if(sessions.length>30)sessions.pop();
+  // Show toast
+  const toast=document.getElementById('save-toast');
+  toast.classList.add('show');
+  setTimeout(()=>toast.classList.remove('show'),2500);
+}
+
+function renderHistory(){
+  const container=document.getElementById('history-content');
+  const count=document.getElementById('history-count');
+  count.textContent=sessions.length+' session'+(sessions.length!==1?'s':'');
+  if(!sessions.length){
+    container.innerHTML='<div class="history-empty-state"><div class="history-empty-icon">🎧</div><div class="history-empty-text">No sessions saved yet.<br>Analyze a track and tap<br>"Save this session".</div></div>';
+    return;
+  }
+  container.innerHTML='';
+  sessions.forEach((s,i)=>{
+    const card=document.createElement('div');card.className='session-card';
+    const tagsHtml=(s.tags||[]).map(t=>`<span class="session-tag">${t}</span>`).join('');
+    const analysisHtml=s.analysis?`<div style="font-size:12px;color:var(--text2);line-height:1.6;margin-bottom:10px;">${s.analysis}</div>`:'';
+    card.innerHTML=`
+      <div class="session-top">
+        <div>
+          <div class="session-name">${s.name}</div>
+          <div class="session-date">${s.date}</div>
+        </div>
+        <button class="session-delete" onclick="deleteSession(${i})">✕</button>
+      </div>
+      <div class="session-metrics">
+        <div class="session-metric"><div class="session-metric-val">${s.bpm}</div><div class="session-metric-label">BPM</div></div>
+        <div class="session-metric"><div class="session-metric-val">${s.lufs}</div><div class="session-metric-label">LUFS</div></div>
+        <div class="session-metric"><div class="session-metric-val" style="font-size:13px">${s.key||'—'}</div><div class="session-metric-label">Key</div></div>
+      </div>
+      ${analysisHtml}
+      <div class="session-tags">${tagsHtml}</div>`;
+    container.appendChild(card);
+  });
+  const clearBtn=document.createElement('button');clearBtn.className='btn-clear-all';clearBtn.textContent='Clear all sessions';clearBtn.onclick=clearHistory;
+  container.appendChild(clearBtn);
+}
+
+function deleteSession(i){sessions.splice(i,1);renderHistory();}
+function clearHistory(){sessions=[];renderHistory();}
+
+// ── Reference track ───────────────────────────────────────────────
+function loadReference(evt){
+  const file=evt.target.files[0];if(!file)return;
+  document.getElementById('ref-load-label').textContent='⏳ Analyzing '+file.name+'…';
+  const reader=new FileReader();
+  reader.onload=async(e)=>{
+    try{
+      const ctx=new(window.AudioContext||window.webkitAudioContext)();
+      const buffer=await ctx.decodeAudioData(e.target.result);
+      const off=new OfflineAudioContext(1,buffer.length,buffer.sampleRate);
+      const src=off.createBufferSource();src.buffer=buffer;
+      const an=off.createAnalyser();an.fftSize=4096;
+      src.connect(an);an.connect(off.destination);src.start(0);
+      const snapTime=Math.min(buffer.duration*0.4, buffer.duration-0.1);
+      off.suspend(snapTime).then(()=>{
+        const fd=new Uint8Array(an.frequencyBinCount);an.getByteFrequencyData(fd);
+        const td=new Float32Array(an.frequencyBinCount);an.getFloatTimeDomainData(td);
+        const bs=buffer.sampleRate/an.fftSize;
+        let rms=0;for(let i=0;i<td.length;i++)rms+=td[i]*td[i];rms=Math.sqrt(rms/td.length);
+  // Guard: if rms is essentially 0, audio context may not be receiving input
+  if(rms < 0.00001 && elapsedSec > 2) {
+    // Try to resume context if suspended
+    if(audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+  }
+        const lufs=rms>0.0005?(20*Math.log10(rms)).toFixed(1):'—';
+        const loBin=Math.floor(40/bs),midBin=Math.floor(250/bs);
+        let ls=0;for(let i=loBin;i<midBin;i++)ls+=fd[i];
+        const low=Math.round((ls/(midBin-loBin)/255)*100)+'%';
+        const hiBin=Math.floor(8000/bs),topBin=Math.min(Math.floor(20000/bs),fd.length-1);
+        let hs=0;for(let i=hiBin;i<topBin;i++)hs+=fd[i];
+        const bright=Math.round((hs/(topBin-hiBin)/255)*100)+'%';
+        const chroma=new Array(12).fill(0);
+        for(let i=1;i<fd.length;i++){const freq=i*bs;if(freq<80||freq>4000)continue;const midi=69+12*Math.log2(freq/440);const c=((Math.round(midi)%12)+12)%12;chroma[c]+=fd[i];}
+        const mx=Math.max(...chroma);const norm=chroma.map(v=>v/(mx||1));
+        let bst=-Infinity,bk='',bm='';
+        for(let root=0;root<12;root++){let maj=0,min=0;for(let i=0;i<12;i++){maj+=norm[(i+root)%12]*MAJOR_PROFILE[i];min+=norm[(i+root)%12]*MINOR_PROFILE[i];}if(maj>bst){bst=maj;bk=NOTE_NAMES[root];bm='major';}if(min>bst){bst=min;bk=NOTE_NAMES[root];bm='minor';}}
+        refData={lufs,low,bright,key:bk+' '+bm,name:file.name.replace(/\.[^.]+$/,'')};
+        document.getElementById('ref-load-label').textContent='✓ '+refData.name;
+        document.getElementById('compare-grid').style.display='grid';
+        document.getElementById('ref-col-label').textContent='📂 '+refData.name;
+        document.getElementById('cmp-lufs-b').textContent=refData.lufs+' LUFS';
+        document.getElementById('cmp-low-b').textContent=refData.low;
+        document.getElementById('cmp-bright-b').textContent=refData.bright;
+        document.getElementById('cmp-key-b').textContent=refData.key;
+        document.getElementById('cmp-bpm-b').textContent='—';
+        updateCompare();
+        off.close();ctx.close();
+      });
+      off.startRendering();
+    }catch(err){document.getElementById('ref-load-label').textContent='⚠️ Error loading file. Try another format.';}
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function updateCompare(){
+  const bpm=document.getElementById('m-bpm').textContent;
+  const lufs=document.getElementById('m-lufs').textContent;
+  const low=document.getElementById('m-low').textContent;
+  const bright=document.getElementById('m-bright').textContent;
+  const key=document.getElementById('m-key').textContent;
+  document.getElementById('cmp-bpm-a').textContent=bpm!=='—'?bpm+' BPM':'—';
+  document.getElementById('cmp-lufs-a').textContent=lufs!=='—'?lufs+' LUFS':'—';
+  document.getElementById('cmp-low-a').textContent=low||'—';
+  document.getElementById('cmp-bright-a').textContent=bright||'—';
+  document.getElementById('cmp-key-a').textContent=key||'—';
+  if(!refData)return;
+  const la=parseFloat(lufs),lb=parseFloat(refData.lufs);
+  if(!isNaN(la)&&!isNaN(lb)){
+    document.getElementById('cmp-lufs-a').className='compare-val'+(la>lb?' better':' worse');
+    document.getElementById('cmp-lufs-b').className='compare-val'+(lb>la?' better':' worse');
+  }
+}
+
+// ── Main loop ─────────────────────────────────────────────────────
+function loop(){
+  if(!isListening)return;
+  animFrame=requestAnimationFrame(loop);
+  const bl=analyser.frequencyBinCount;  // = fftSize/2 = 2048
+  const fd=new Uint8Array(bl),td=new Float32Array(analyser.fftSize);  // time domain needs full fftSize
+  analyser.getByteFrequencyData(fd);analyser.getFloatTimeDomainData(td);
+  const sr=audioCtx.sampleRate,bs=sr/analyser.fftSize;
+  drawWaveform(td);drawEQWave(fd,sr);
+  // Also show that we're receiving signal via waveform canvas title
+  let rms=0;for(let i=0;i<td.length;i++)rms+=td[i]*td[i];rms=Math.sqrt(rms/td.length);
+  // Guard: if rms is essentially 0, audio context may not be receiving input
+  if(rms < 0.00001 && elapsedSec > 2) {
+    // Try to resume context if suspended
+    if(audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+  }
+  checkTrackChange(rms);detectMusic(fd,rms);detectBPM(fd);detectKey(fd,sr);
+  // LUFS: calibrated to be closer to integrated loudness
+  const rawDb = rms > 0.0005 ? 20 * Math.log10(rms) : null;
+  // Apply offset to better match real LUFS meters (+12 dB correction for Web Audio normalization)
+  const lufsCalibrated = rawDb !== null ? (rawDb + 12).toFixed(1) : '—';
+  const lufs = lufsCalibrated;
+  document.getElementById('m-lufs').textContent = lufs !== '—' ? lufs : '—';
+  // Low end: sub (20-80Hz) + bass (80-250Hz) weighted
+  const subBin=Math.floor(20/bs), loBin=Math.floor(80/bs), midBin=Math.floor(250/bs);
+  let subSum=0, bassSum=0;
+  for(let i=subBin;i<loBin;i++) subSum+=fd[i];
+  for(let i=loBin;i<midBin;i++) bassSum+=fd[i];
+  const subAvg=subSum/Math.max(1,loBin-subBin);
+  const bassAvg=bassSum/Math.max(1,midBin-loBin);
+  // Weight bass more than sub for perceptual accuracy
+  const lowPct=Math.min(Math.round(((subAvg*0.4+bassAvg*0.6)/255)*100),100);
+  document.getElementById('m-low').textContent=lowPct+'%';
+  // Brightness: 6k-20kHz (air/presence range)
+  const hiBin=Math.floor(6000/bs),topBin=Math.min(Math.floor(20000/bs),bl-1);
+  let hs=0; for(let i=hiBin;i<topBin;i++) hs+=fd[i];
+  const hiPct=Math.min(Math.round((hs/Math.max(1,topBin-hiBin)/255)*100),100);
+  document.getElementById('m-bright').textContent=hiPct+'%';
+  // hiPct now properly defined for snapshot below
+  let peak=0;for(let i=0;i<td.length;i++)peak=Math.max(peak,Math.abs(td[i]));
+  const crest=rms>0?Math.min(peak/(rms+0.0001),20):0;
+  const crestPct=Math.round((crest/20)*100);
+  let pp=0;for(let i=1;i<td.length;i++)pp+=Math.abs(td[i]-td[i-1]);
+  const transPct=Math.min(Math.round((pp/td.length)*1200),100);
+  const compPct=Math.max(0,100-crestPct);
+  // Compression: high compression = low crest factor = signal is "squashed"
+  // Real music: crest factor 8-14dB = moderate compression, <8 = heavy, >14 = light
+  const compLabel = crest < 6 ? 'heavy' : crest < 10 ? 'moderate' : crest < 14 ? 'light' : 'minimal';
+  updDyn('d-comp','d-comp-val',compPct,compLabel);
+  // Stereo width estimate: compare energy distribution across frequency spectrum
+  // High variation in upper mids = wider stereo image
+  let stereoEst = 0;
+  const midStart=Math.floor(1000/bs), midEnd=Math.floor(8000/bs);
+  let prevVal=0;
+  for(let i=midStart;i<Math.min(midEnd,bl);i++){stereoEst+=Math.abs(fd[i]-prevVal);prevVal=fd[i];}
+  const stereoWidth=Math.min(Math.round((stereoEst/Math.max(1,midEnd-midStart))/2),100);
+  updDyn('d-stereo','d-stereo-val',stereoWidth,stereoWidth+'%');
+  updDyn('d-trans','d-trans-val',transPct,lvl(transPct));
+  updDyn('d-crest','d-crest-val',crestPct,crest.toFixed(1)+' dB');
+  if(refData)updateCompare();
+  lastSnapshot={lufs,lowPct,hiPct,compPct,transPct,crest:crest.toFixed(1)};
+}
+function lvl(p){if(p<25)return'low';if(p<50)return'mid';if(p<75)return'high';return'very high';}
+function updDyn(fi,vi,pct,label){document.getElementById(fi).style.width=pct+'%';document.getElementById(vi).textContent=label;}
+
+// ── Mic ───────────────────────────────────────────────────────────
+async function toggleMic(){
+  if(isListening){stopAll();return;}
+  try{
+    // Unlock AudioContext on mobile
+    audioCtx=new(window.AudioContext||window.webkitAudioContext)();
+    if(audioCtx.state==='suspended')await audioCtx.resume();
+    micStream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false},video:false});
+    analyser=audioCtx.createAnalyser();analyser.fftSize=4096;
+    source=audioCtx.createMediaStreamSource(micStream);source.connect(analyser);
+    currentTrackName='Live mic';
+    startAnalysis('Microphone');
+  }catch(e){alert('Microphone access denied or not available.');}
+}
+
+// ── File (mobile-safe) ────────────────────────────────────────────
+function loadFile(evt){
+  const file=evt.target.files[0];if(!file)return;
+  stopAll();
+  currentTrackName=file.name.replace(/\.[^.]+$/,'');
+  const reader=new FileReader();
+  reader.onload=async(e)=>{
+    try{
+      audioCtx=new(window.AudioContext||window.webkitAudioContext)();
+      if(audioCtx.state==='suspended')await audioCtx.resume();
+      const buffer=await audioCtx.decodeAudioData(e.target.result);
+      analyser=audioCtx.createAnalyser();analyser.fftSize=4096;
+      source=audioCtx.createBufferSource();source.buffer=buffer;
+      source.connect(analyser);analyser.connect(audioCtx.destination);
+      source.start(0);source.onended=stopAll;
+      startAnalysis(currentTrackName);
+    }catch(err){alert('Could not decode audio file. Try MP3 or WAV format.');}
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function startAnalysis(label){
+  isListening=true;elapsedSec=0;energyLog=[];
+  bpmCandidates={};lockedBpm=null;prevSpectrum=null;onsetBuffer=[];
+  keyVotes={};lockedKey=null;keyFrameCounter=0;
+  musicScore=0;silenceFrames=0;inSilence=false;
+  eqSmooth=new Array(512).fill(0);lastSnapshot=null;
+  lastAiAnalysis=null;lastAiTags=[];
+  document.getElementById('btn-listen').textContent='⏹ Stop';
+  document.getElementById('btn-listen').classList.add('stop');
+  document.getElementById('status-pill').className='status-pill active';
+  document.getElementById('status-text').textContent=label;
+  document.getElementById('btn-ai').disabled=false;
+  document.getElementById('btn-save').disabled=false;
+  document.getElementById('new-track-label').textContent='';
+  document.getElementById('bpm-lock').style.display='none';
+  document.getElementById('key-lock').style.display='none';
+  document.getElementById('timeline').innerHTML='<div class="idle-msg">Available after 30+ sec of music</div>';
+  tickInterval=setInterval(()=>{elapsedSec++;maybeUpdateStructure();},1000);
+  loop();
+}
+
+function stopAll(){
+  isListening=false;cancelAnimationFrame(animFrame);clearInterval(tickInterval);
+  if(micStream){micStream.getTracks().forEach(t=>t.stop());micStream=null;}
+  if(source){try{source.stop();}catch(e){}source=null;}
+  if(audioCtx){audioCtx.close();audioCtx=null;}
+  document.getElementById('btn-listen').textContent='🎙 Listen live';
+  document.getElementById('btn-listen').classList.remove('stop');
+  document.getElementById('status-pill').className='status-pill';
+  document.getElementById('status-text').textContent='Waiting';
+}
+
+// ── API key persistence ──────────────────────────────────────────
+function saveKey(val){
+  try{ if(val) localStorage.setItem('tl_api_key', val); else localStorage.removeItem('tl_api_key'); }catch(e){}
+}
+function loadKey(){
+  try{ const k=localStorage.getItem('tl_api_key'); if(k){ document.getElementById('api-key-input').value=k; } }catch(e){}
+}
+window.addEventListener('DOMContentLoaded', loadKey);
+
+// ── AI ────────────────────────────────────────────────────────────
+async function runAI(){
+  const key = document.getElementById('api-key-input').value.trim();
+  if(!key){ alert('Enter your Claude API key.'); return; }
+
+  const btn = document.getElementById('btn-ai');
+  btn.disabled = true;
+  btn.textContent = 'Analyzing…';
+  document.getElementById('ai-text').textContent = 'TrackLens AI is processing your mix…';
+
+  const bpm    = document.getElementById('m-bpm').textContent;
+  const lufs   = document.getElementById('m-lufs').textContent;
+  const low    = document.getElementById('m-low').textContent;
+  const bright = document.getElementById('m-bright').textContent;
+  const keyEl  = document.getElementById('m-key').textContent;
+  const snap   = lastSnapshot;
+
+  let dataStr = 'Track: ' + currentTrackName + '\n';
+  dataStr += 'BPM: ' + bpm + '\n';
+  dataStr += 'Loudness: ' + lufs + ' LUFS\n';
+  dataStr += 'Low end energy: ' + low + '\n';
+  dataStr += 'Brightness: ' + bright + '\n';
+  dataStr += 'Key: ' + keyEl + '\n';
+  if(snap){
+    dataStr += 'Compression: ' + snap.compPct + '%\n';
+    dataStr += 'Crest factor: ' + snap.crest + ' dB\n';
+    dataStr += 'Transients: ' + snap.transPct + '%\n';
+  }
+  if(refData){
+    dataStr += 'Reference track — LUFS: ' + refData.lufs + ', Low end: ' + refData.low + ', Brightness: ' + refData.bright + ', Key: ' + refData.key + '\n';
+  }
+
+  const promptText = 'You are TrackLens AI, an expert music production analyst. A producer is doing a reference session.' +
+    ' Analyze the audio metrics below and give a detailed, practical response structured in 5 sections:\n\n' +
+    '1. SOUND & GENRE: Describe the sonic character and likely genre.\n' +
+    '2. PRODUCTION TECHNIQUES: What mixing and production techniques were likely used?\n' +
+    '3. PLUGINS & GEAR: Name specific real plugins or hardware (e.g. FabFilter Pro-C 2, Waves SSL, UAD 1176, Soundtoys Decapitator).\n' +
+    '4. HOW TO REPRODUCE: Give 2-3 concrete actionable tips to recreate this sound in a DAW.\n' +
+    '5. SIMILAR ARTISTS: Name 2-3 artists or producers with a comparable sound.\n\n' +
+    'Audio data:\n' + dataStr + '\n' +
+    'Reply ONLY with valid JSON, no markdown:\n' +
+    '{"analysis":"1. SOUND & GENRE:\n[text]\n\n2. PRODUCTION TECHNIQUES:\n[text]\n\n3. PLUGINS & GEAR:\n[text]\n\n4. HOW TO REPRODUCE:\n[text]\n\n5. SIMILAR ARTISTS:\n[text]","tags":["tag1","tag2","tag3","tag4"]}';
+
+  try{
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': key,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-5',
+        max_tokens: 900,
+        messages: [{ role: 'user', content: promptText }]
+      })
+    });
+
+    const data = await res.json();
+
+    if(data.error){
+      document.getElementById('ai-text').textContent = 'API Error: ' + data.error.message;
+      btn.disabled = false; btn.textContent = 'Analyze';
+      return;
+    }
+
+    const rawText = data.content && data.content[0] ? data.content[0].text : '{}';
+    const clean = rawText.replace(/```json/g,'').replace(/```/g,'').trim();
+
+    // Robust JSON parse: if truncated, extract what we can
+    let parsed = {};
+    try {
+      parsed = JSON.parse(clean);
+    } catch(jsonErr) {
+      // Try to extract analysis text directly with regex
+      const analysisMatch = clean.match(/"analysis"\s*:\s*"([\s\S]+?)(?:","tags"|"\s*}|$)/);
+      const tagsMatch = clean.match(/"tags"\s*:\s*\[([^\]]*)\]/);
+      if(analysisMatch) {
+        try { parsed.analysis = JSON.parse('"' + analysisMatch[1] + '"'); } catch(e) { parsed.analysis = analysisMatch[1].replace(/\\n/g,'\n'); }
+      }
+      if(tagsMatch) {
+        try { parsed.tags = JSON.parse('[' + tagsMatch[1] + ']'); } catch(e) { parsed.tags = []; }
+      }
+      if(!parsed.analysis) {
+        // Last resort: show raw text
+        parsed.analysis = clean.replace(/"analysis"\s*:\s*"/, '').replace(/",?\s*"tags.*$/, '');
+      }
+    }
+
+    lastAiAnalysis = parsed.analysis || null;
+    lastAiTags = parsed.tags || [];
+
+    // Format for display
+    const html = (lastAiAnalysis || 'No analysis available.')
+      .split('\n\n')
+      .map(function(block){
+        return '<p style="margin-bottom:10px">' +
+          block.replace(/^(\d\. [A-Z &]+:)/, '<strong style="color:var(--accent2)">$1</strong>') +
+          '</p>';
+      })
+      .join('');
+
+    document.getElementById('ai-text').innerHTML = html;
+
+    const tagsEl = document.getElementById('ai-tags');
+    tagsEl.innerHTML = '';
+    const tc = ['purple','teal','amber','coral'];
+    lastAiTags.forEach(function(t, i){
+      const span = document.createElement('span');
+      span.className = 'tag ' + tc[i % tc.length];
+      span.textContent = t;
+      tagsEl.appendChild(span);
+    });
+
+  } catch(e) {
+    document.getElementById('ai-text').textContent = 'Error: ' + e.message + '. Check your API key and try again.';
+  }
+
+  btn.disabled = false;
+  btn.textContent = 'Analyze';
+}
+
+</script>
+</body>
+</html>
